@@ -1,40 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  IDM No Ads — custom AppxManifest template for Tauri 2 MSIX packaging.
+  IDM No Ads — AppxManifest for Microsoft Store MSIX packaging.
 
-  Tauri substitutes __TAURI_*__ tokens before packaging.  All additions vs.
-  the default Tauri-generated manifest are marked with "IDM No Ads addition".
+  This file is used by the CI "Package MSIX" step (build.yml).  The PowerShell
+  script substitutes {{VERSION}} before calling makeappx.exe.  It is NOT
+  processed by Tauri's bundler (Tauri 2 builds NSIS + MSI via its own pipeline).
 
-  runFullTrust restricted capability:
-    Required because idmnoads-host.exe must be launchable by Chrome / Edge /
-    Firefox / Brave as a native-messaging host subprocess.  Browsers resolve
-    the executable path from the HKCU registry key and spawn it directly; this
-    only works if the executable is declared as a full-trust Win32 process.
-    During Partner Center submission, Microsoft will ask for justification —
-    state that the host bridges browser extensions to the local desktop app.
+  runFullTrust restricted capability — required so that Chrome / Edge / Firefox /
+  Brave can spawn idmnoads-host.exe as a native-messaging host subprocess from
+  the protected MSIX install directory.  During Partner Center submission, add
+  justification: "The native messaging host bridges browser extensions to the
+  local IDM No Ads desktop app."
+
+  File associations for .torrent and .metalink are declared here so Windows
+  registers them at install time without needing NSIS hooks (which don't run
+  for MSIX installs).
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
   xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap uap3 mp rescap desktop2">
+  IgnorableNamespaces="uap rescap desktop2">
 
+  <!--
+    Publisher CN must match the signing certificate.
+    For CI (self-signed): CN=IDMNoAdsTest
+    For Partner Center upload: Microsoft re-signs; submit with your Partner Center
+    Publisher CN from Account settings → Legal info.
+  -->
   <Identity
-    Name="__TAURI_PACKAGE_IDENTITY_NAME__"
-    Publisher="__TAURI_PUBLISHER__"
-    Version="__TAURI_VERSION__.0"
+    Name="IrRiovanStyxRoring.IDMNoAds"
+    Publisher="CN=IDMNoAdsTest"
+    Version="{{VERSION}}.0"
     ProcessorArchitecture="x64" />
 
-  <mp:PhoneIdentity
-    PhoneProductId="__TAURI_PACKAGE_IDENTITY_NAME__"
-    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
-
   <Properties>
-    <DisplayName>__TAURI_PRODUCT_NAME__</DisplayName>
-    <PublisherDisplayName>__TAURI_PUBLISHER_DISPLAY_NAME__</PublisherDisplayName>
+    <DisplayName>IDM No Ads</DisplayName>
+    <PublisherDisplayName>Ir. Riovan Styx Roring</PublisherDisplayName>
     <Logo>icons\StoreLogo.png</Logo>
   </Properties>
 
@@ -51,13 +54,13 @@
 
   <Applications>
     <Application
-      Id="__TAURI_APP_ID__"
-      Executable="__TAURI_EXECUTABLE__"
+      Id="IDMNoAds"
+      Executable="IDM No Ads.exe"
       EntryPoint="Windows.FullTrustApplication">
 
       <uap:VisualElements
-        DisplayName="__TAURI_PRODUCT_NAME__"
-        Description="__TAURI_SHORT_DESCRIPTION__"
+        DisplayName="IDM No Ads"
+        Description="Free, no-ads, segmented download manager"
         BackgroundColor="transparent"
         Square150x150Logo="icons\Square150x150Logo.png"
         Square44x44Logo="icons\Square44x44Logo.png">
@@ -71,19 +74,17 @@
             <uap:ShowOn Tile="square310x310Logo" />
           </uap:ShowNameOnTiles>
         </uap:DefaultTile>
-        <uap:SplashScreen Image="icons\Square310x310Logo.png" />
       </uap:VisualElements>
 
       <Extensions>
 
-        <!-- IDM No Ads addition: allow browsers to spawn idmnoads-host.exe  -->
-        <!-- as a full-trust Win32 process (native-messaging host).           -->
+        <!-- Allow browsers (Chrome/Edge/Firefox/Brave) to launch idmnoads-host.exe
+             as a native-messaging host subprocess from the MSIX install directory. -->
         <desktop2:Extension
           Category="windows.fullTrustProcess"
-          Executable="idmnoads-host.exe"
-          xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2" />
+          Executable="idmnoads-host.exe" />
 
-        <!-- IDM No Ads addition: .torrent file association -->
+        <!-- .torrent file association -->
         <uap:Extension Category="windows.fileTypeAssociation">
           <uap:FileTypeAssociation Name="torrent">
             <uap:SupportedFileTypes>
@@ -94,7 +95,7 @@
           </uap:FileTypeAssociation>
         </uap:Extension>
 
-        <!-- IDM No Ads addition: .metalink file association -->
+        <!-- .metalink file association -->
         <uap:Extension Category="windows.fileTypeAssociation">
           <uap:FileTypeAssociation Name="metalink">
             <uap:SupportedFileTypes>
@@ -110,10 +111,8 @@
   </Applications>
 
   <Capabilities>
-    <!-- Standard capabilities -->
     <Capability Name="internetClient" />
-
-    <!-- IDM No Ads addition: required for fullTrustProcess (idmnoads-host.exe) -->
+    <!-- Required for fullTrustProcess (idmnoads-host.exe spawned by browsers). -->
     <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 

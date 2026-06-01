@@ -75,34 +75,74 @@ jobs:
           Export-PfxCertificate -Cert $cert -FilePath msix-sign.pfx -Password $pwd
           Write-Host "MSIX_CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
 
-      - name: Build Tauri app (MSI + NSIS setup.exe + MSIX)
-        run: tauri build --bundles nsis,msi,app
-        env:
-          # Self-signed publisher must match <Identity Publisher> in AppxManifest.
-          # The template uses __TAURI_PUBLISHER__ which Tauri fills from tauri.conf.json;
-          # for the MSIX the Publisher CN must match the cert Subject.
-          TAURI_SIGNING_PRIVATE_KEY: ""
+      - name: Build Tauri app (MSI + NSIS setup.exe)
+        run: tauri build
 
-      - name: Sign MSIX with self-signed certificate
+      - name: Package MSIX (makeappx + self-signed signtool)
         shell: pwsh
         run: |
-          $msix = Get-ChildItem -Recurse src-tauri/target/release/bundle/app -Filter *.msix |
-                  Select-Object -First 1
-          if (-not $msix) {
-            Write-Host "No MSIX found — skipping signing"
+          # ── 1. Locate built binaries ──────────────────────────────────────────
+          $releaseDir = "src-tauri\target\release"
+          $mainExe    = Join-Path $releaseDir "IDM No Ads.exe"
+          $aria2Exe   = Join-Path $releaseDir "aria2c.exe"
+          $hostExe    = Join-Path $releaseDir "idmnoads-host.exe"
+
+          if (-not (Test-Path $mainExe)) {
+            Write-Warning "Main executable not found at $mainExe — skipping MSIX"
             exit 0
           }
-          # Use signtool from the Windows SDK (pre-installed on windows-latest).
+
+          # ── 2. Build MSIX staging directory ───────────────────────────────────
+          $stage = "msix-stage"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          New-Item -ItemType Directory -Force -Path "$stage\icons" | Out-Null
+
+          # Binaries
+          Copy-Item $mainExe    "$stage\IDM No Ads.exe" -Force
+          if (Test-Path $aria2Exe) { Copy-Item $aria2Exe  "$stage\aria2c.exe" -Force }
+          if (Test-Path $hostExe)  { Copy-Item $hostExe   "$stage\idmnoads-host.exe" -Force }
+
+          # WebView2 loader (present after tauri build)
+          $wv2 = Get-ChildItem -Recurse $releaseDir -Filter WebView2Loader.dll |
+                 Select-Object -First 1
+          if ($wv2) { Copy-Item $wv2.FullName "$stage\WebView2Loader.dll" -Force }
+
+          # Icons required by the manifest
+          foreach ($icon in @(
+            "Square30x30Logo.png","Square44x44Logo.png","Square71x71Logo.png",
+            "Square89x89Logo.png","Square107x107Logo.png","Square142x142Logo.png",
+            "Square150x150Logo.png","Square284x284Logo.png","Square310x310Logo.png",
+            "StoreLogo.png","icon.png"
+          )) {
+            $src = "src-tauri\icons\$icon"
+            if (Test-Path $src) { Copy-Item $src "$stage\icons\$icon" -Force }
+          }
+
+          # ── 3. Write AppxManifest.xml (substitute {{VERSION}}) ───────────────
+          $version = "1.0.0"
+          (Get-Content "src-tauri\AppxManifest.xml.template" -Raw) `
+            -replace '\{\{VERSION\}\}', $version |
+            Set-Content "$stage\AppxManifest.xml" -Encoding UTF8
+
+          # ── 4. Run makeappx to create the MSIX ───────────────────────────────
+          $makeappx = Get-ChildItem -Recurse "C:\Program Files (x86)\Windows Kits\10\bin" `
+                        -Filter makeappx.exe | Select-Object -Last 1
+          if (-not $makeappx) {
+            Write-Warning "makeappx.exe not found — MSIX packaging skipped"
+            exit 0
+          }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & $makeappx.FullName pack /d $stage /p dist\IDMNoAds.msix /nv /o
+          Write-Host "MSIX created: dist\IDMNoAds.msix"
+
+          # ── 5. Sign with the self-signed cert created earlier ─────────────────
           $signtool = Get-ChildItem -Recurse "C:\Program Files (x86)\Windows Kits\10\bin" `
                         -Filter signtool.exe | Select-Object -Last 1
-          if (-not $signtool) {
-            Write-Warning "signtool not found; MSIX will be unsigned"
-            exit 0
+          if ($signtool -and (Test-Path msix-sign.pfx)) {
+            & $signtool.FullName sign /fd SHA256 /f msix-sign.pfx /p idmnoads `
+                /tr http://timestamp.digicert.com /td SHA256 dist\IDMNoAds.msix
+            Write-Host "MSIX signed."
           }
-          $pwd = ConvertTo-SecureString -String "idmnoads" -Force -AsPlainText
-          & $signtool.FullName sign /fd SHA256 /f msix-sign.pfx /p idmnoads `
-              /tr http://timestamp.digicert.com /td SHA256 $msix.FullName
-          Write-Host "Signed: $($msix.FullName)"
 
       - name: Stage release artifacts
         shell: pwsh

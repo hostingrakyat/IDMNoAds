@@ -198,16 +198,17 @@ fn register_native_host(app: &tauri::App) -> Result<(), Box<dyn std::error::Erro
     let chrome_path = chrome_manifest.to_string_lossy().to_string();
     let firefox_path = firefox_manifest.to_string_lossy().to_string();
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let browsers = [
-        (r"Software\Google\Chrome\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
-        (r"Software\Chromium\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
-        (r"Software\Microsoft\Edge\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
-        (r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
-        (r"Software\Mozilla\NativeMessagingHosts\com.idmnoads.host", firefox_path.as_str()),
+    // Use explicit &[(&str, &str)] with destructure-by-ref to keep types unambiguous.
+    let entries: &[(&str, &str)] = &[
+        (r"Software\Google\Chrome\NativeMessagingHosts\com.idmnoads.host", &chrome_path),
+        (r"Software\Chromium\NativeMessagingHosts\com.idmnoads.host", &chrome_path),
+        (r"Software\Microsoft\Edge\NativeMessagingHosts\com.idmnoads.host", &chrome_path),
+        (r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.idmnoads.host", &chrome_path),
+        (r"Software\Mozilla\NativeMessagingHosts\com.idmnoads.host", &firefox_path),
     ];
-    for (key_path, manifest_path) in &browsers {
+    for &(key_path, manifest_path) in entries {
         let (key, _) = hkcu.create_subkey(key_path)?;
-        key.set_value("", manifest_path)?;
+        key.set_value("", &manifest_path)?;
     }
 
     // Write sentinel so we skip this on subsequent launches.
