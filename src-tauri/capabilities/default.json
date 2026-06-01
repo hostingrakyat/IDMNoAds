@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the main IDM No Ads window. App-specific functionality is exposed through Rust commands; only core APIs need to be enabled here.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

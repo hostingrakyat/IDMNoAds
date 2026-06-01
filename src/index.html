@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IDM No Ads</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-theme="dark">
+    <!-- Title / top bar -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="icon.png" alt="logo" class="brand-logo" />
+        <span class="brand-name">IDM <b>No&nbsp;Ads</b></span>
+      </div>
+      <div class="top-actions">
+        <input id="quickUrl" class="quick-url" type="text" placeholder="Paste a URL and press Enter to download…" />
+        <button id="addBtn" class="btn primary" data-i18n="add">Add URL</button>
+        <button id="grabBtn" class="btn" data-i18n="grab" title="Grab all links from clipboard">Grab links</button>
+        <button id="themeBtn" class="icon-btn" title="Toggle theme">◐</button>
+        <select id="langSel" class="lang-sel" title="Language">
+          <option value="en">EN</option>
+          <option value="id">ID</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar: categories -->
+      <nav class="sidebar">
+        <ul class="cats" id="catList">
+          <li data-cat="all" class="active"><span class="dot all"></span><span data-i18n="cat_all">All</span><b id="cnt-all">0</b></li>
+          <li data-cat="active"><span class="dot run"></span><span data-i18n="cat_active">Active</span><b id="cnt-active">0</b></li>
+          <li data-cat="General"><span class="dot"></span><span data-i18n="cat_general">General</span><b id="cnt-General">0</b></li>
+          <li data-cat="Videos"><span class="dot"></span><span data-i18n="cat_videos">Videos</span><b id="cnt-Videos">0</b></li>
+          <li data-cat="Music"><span class="dot"></span><span data-i18n="cat_music">Music</span><b id="cnt-Music">0</b></li>
+          <li data-cat="Documents"><span class="dot"></span><span data-i18n="cat_documents">Documents</span><b id="cnt-Documents">0</b></li>
+          <li data-cat="Programs"><span class="dot"></span><span data-i18n="cat_programs">Programs</span><b id="cnt-Programs">0</b></li>
+          <li data-cat="Compressed"><span class="dot"></span><span data-i18n="cat_compressed">Compressed</span><b id="cnt-Compressed">0</b></li>
+        </ul>
+        <div class="sidebar-bottom">
+          <button class="nav-btn" id="navSettings" data-i18n="settings">⚙ Settings</button>
+          <button class="nav-btn" id="navAbout" data-i18n="about">ⓘ About</button>
+        </div>
+      </nav>
+
+      <!-- Main -->
+      <main class="main">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <button class="tb" id="tbResumeAll" data-i18n="resume_all">▶ Resume all</button>
+          <button class="tb" id="tbPauseAll" data-i18n="pause_all">⏸ Pause all</button>
+          <button class="tb danger" id="tbClear" data-i18n="clear_done">🗑 Clear completed</button>
+          <span class="spacer"></span>
+          <span class="globalstat" id="globalStat">↓ 0 B/s</span>
+        </div>
+
+        <!-- Speed graph -->
+        <canvas id="speedGraph" class="speed-graph" height="70"></canvas>
+
+        <!-- Download table -->
+        <div class="table-wrap">
+          <table class="dl-table">
+            <thead>
+              <tr>
+                <th data-i18n="col_name">Name</th>
+                <th data-i18n="col_size">Size</th>
+                <th data-i18n="col_progress">Progress</th>
+                <th data-i18n="col_speed">Speed</th>
+                <th data-i18n="col_eta">ETA</th>
+                <th data-i18n="col_status">Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="dlBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty">
+            <div class="empty-icon">⬇</div>
+            <p data-i18n="empty">No downloads yet. Paste a URL above, drag a link here, or use the browser extension.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Add-download modal -->
+    <div class="modal-backdrop" id="addModal" hidden>
+      <div class="modal">
+        <h3 data-i18n="add_download">Add download</h3>
+        <label data-i18n="url">URL</label>
+        <textarea id="m_url" rows="3" placeholder="https://…  (one URL per line)"></textarea>
+        <div class="row">
+          <div class="col">
+            <label data-i18n="save_to">Save to</label>
+            <div class="folder-row">
+              <input id="m_dir" type="text" />
+              <button class="btn" id="m_browse" data-i18n="browse">Browse</button>
+            </div>
+          </div>
+          <div class="col narrow">
+            <label data-i18n="connections">Connections</label>
+            <input id="m_conn" type="number" min="1" max="32" value="16" />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="m_cancel" data-i18n="cancel">Cancel</button>
+          <button class="btn primary" id="m_ok" data-i18n="start">Start download</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div class="modal-backdrop" id="settingsModal" hidden>
+      <div class="modal wide">
+        <h3 data-i18n="settings">Settings</h3>
+        <div class="settings-grid">
+          <label data-i18n="max_concurrent">Simultaneous downloads</label>
+          <input id="s_concurrent" type="number" min="1" max="20" />
+
+          <label data-i18n="conn_per_file">Connections per file (1-32)</label>
+          <input id="s_conn" type="number" min="1" max="32" />
+
+          <label data-i18n="speed_limit">Speed limit (KB/s, 0 = unlimited)</label>
+          <input id="s_speed" type="number" min="0" />
+
+          <label data-i18n="default_dir">Default download folder</label>
+          <div class="folder-row">
+            <input id="s_dir" type="text" />
+            <button class="btn" id="s_browse" data-i18n="browse">Browse</button>
+          </div>
+
+          <label data-i18n="proxy">Proxy (http://host:port)</label>
+          <input id="s_proxy" type="text" placeholder="(optional)" />
+
+          <label data-i18n="clipboard_watch">Auto-capture clipboard URLs</label>
+          <input id="s_clipboard" type="checkbox" class="chk" />
+
+          <label data-i18n="autostart">Start with Windows</label>
+          <input id="s_autostart" type="checkbox" class="chk" />
+
+          <label data-i18n="min_tray">Minimize to tray on close</label>
+          <input id="s_tray" type="checkbox" class="chk" />
+
+          <label data-i18n="sched_enable">Scheduler enabled</label>
+          <input id="s_sched" type="checkbox" class="chk" />
+
+          <label data-i18n="sched_window">Schedule window (start–stop, 24h)</label>
+          <div class="folder-row">
+            <input id="s_sched_start" type="time" />
+            <input id="s_sched_stop" type="time" />
+          </div>
+        </div>
+
+        <h4 data-i18n="filetypes">Capture these file types</h4>
+        <div id="filetypeChips" class="chips"></div>
+
+        <h4 data-i18n="advanced">Advanced</h4>
+        <div class="settings-grid">
+          <label>aria2 RPC secret <small data-i18n="rpc_hint">(paste into the browser extension options)</small></label>
+          <div class="folder-row">
+            <input id="s_rpc_secret" type="text" readonly />
+            <button class="btn" id="s_copy_secret" data-i18n="copy">Copy</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn" id="set_cancel" data-i18n="cancel">Cancel</button>
+          <button class="btn primary" id="set_save" data-i18n="save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- About modal -->
+    <div class="modal-backdrop" id="aboutModal" hidden>
+      <div class="modal">
+        <div class="about">
+          <img src="icon.png" class="about-logo" alt="logo" />
+          <h2>IDM No Ads</h2>
+          <p class="ver" id="aboutVer">v1.0.0</p>
+          <p data-i18n="about_blurb">Free, open, no-ads, no-watermark download manager for Windows. Forever.</p>
+          <p class="credit">Created by: <b>Ir. Riovan Styx Roring</b></p>
+          <div class="socials">
+            <a href="https://www.tiktok.com/@ir.riovansroring" target="_blank" rel="noopener">TikTok</a>
+            <a href="https://www.instagram.com/ir.riovansroring/" target="_blank" rel="noopener">Instagram</a>
+            <a href="https://youtube.com/@ir.riovanroring" target="_blank" rel="noopener">YouTube</a>
+          </div>
+          <p class="powered">Powered by Tauri 2 · aria2 · Rust</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn primary" id="about_close" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drop overlay -->
+    <div id="dropOverlay" class="drop-overlay" hidden>
+      <div class="drop-card">⬇ <span data-i18n="drop_here">Drop URL or .torrent to download</span></div>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

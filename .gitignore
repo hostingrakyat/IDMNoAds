@@ -1,0 +1,27 @@
+# Rust
+/target
+src-tauri/target
+native-host/target
+**/*.rs.bk
+Cargo.lock
+
+# Tauri generated
+src-tauri/gen/schemas
+
+# Sidecar binaries (produced by CI; see src-tauri/binaries/README.md)
+src-tauri/binaries/*.exe
+src-tauri/binaries/aria2c*
+src-tauri/binaries/idmnoads-host*
+
+# Node
+node_modules
+dist
+ext-stage
+aria2.zip
+aria2tmp
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode
+.idea

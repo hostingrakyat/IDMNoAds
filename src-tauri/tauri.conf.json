@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "IDM No Ads",
+  "version": "1.0.0",
+  "identifier": "com.idmnoads.app",
+  "build": {
+    "frontendDist": "../src",
+    "beforeBuildCommand": "",
+    "beforeDevCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "IDM No Ads",
+        "width": 1120,
+        "height": 720,
+        "minWidth": 860,
+        "minHeight": 560,
+        "dragDropEnabled": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "externalBin": ["binaries/aria2c", "binaries/idmnoads-host"],
+    "resources": ["resources/*"],
+    "publisher": "Ir. Riovan Styx Roring",
+    "copyright": "© 2026 Ir. Riovan Styx Roring",
+    "category": "Utility",
+    "shortDescription": "Free, no-ads, segmented download manager",
+    "longDescription": "IDM No Ads — a free, open, no-ads, no-watermark download manager for Windows. Multi-segment downloads via aria2, browser integration, scheduler, categories. Forever free.",
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installerHooks": "nsis/hooks.nsi",
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {}
+}

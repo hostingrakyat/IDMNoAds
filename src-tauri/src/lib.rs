@@ -1,0 +1,282 @@
+//! IDM No Ads — Tauri 2 backend.
+//!
+//! Responsibilities:
+//!   * launch the bundled `aria2c.exe` sidecar with a private RPC secret,
+//!   * expose download-management commands to the web frontend,
+//!   * host a named-pipe IPC server for the browser native-messaging host,
+//!   * provide a system tray + minimize-to-tray behaviour.
+mod aria2;
+mod commands;
+mod ipc;
+mod settings;
+
+use aria2::Aria2;
+use settings::Settings;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, WindowEvent};
+
+const RPC_PORT: u16 = 6800;
+
+pub struct AppState {
+    pub aria2: Aria2,
+    pub settings: Mutex<Settings>,
+    pub config_path: PathBuf,
+    pub aria2_child: Mutex<Option<std::process::Child>>,
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        // Single-instance must be registered first; focus the window if a
+        // second instance is launched (e.g. via the extension or a file assoc).
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            ipc::surface_window(app);
+        }))
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .setup(|app| {
+            setup(app)?;
+            Ok(())
+        })
+        .on_window_event(on_window_event)
+        .invoke_handler(tauri::generate_handler![
+            commands::add_download,
+            commands::add_torrent,
+            commands::list_downloads,
+            commands::global_stat,
+            commands::pause_download,
+            commands::resume_download,
+            commands::remove_download,
+            commands::restart_download,
+            commands::pause_all,
+            commands::resume_all,
+            commands::clear_completed,
+            commands::get_settings,
+            commands::save_settings,
+            commands::pick_folder,
+            commands::read_clipboard,
+            commands::write_clipboard,
+            commands::open_url,
+            commands::open_file,
+            commands::app_version,
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building IDM No Ads")
+        .run(|app_handle, event| {
+            // Clean up the aria2 child process when the app exits.
+            if let tauri::RunEvent::Exit = event {
+                if let Some(state) = app_handle.try_state::<AppState>() {
+                    if let Some(mut child) = state.aria2_child.lock().unwrap().take() {
+                        let _ = child.kill();
+                    }
+                }
+            }
+        });
+}
+
+fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let handle = app.handle().clone();
+
+    // Resolve config path and load settings.
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("idmnoads"));
+    std::fs::create_dir_all(&config_dir).ok();
+    let config_path = config_dir.join("settings.json");
+    let mut settings = Settings::load(&config_path);
+
+    // Ensure a stable RPC secret exists (shared with the browser extension).
+    if settings.rpc_secret.is_empty() {
+        settings.rpc_secret = random_secret();
+        let _ = settings.save(&config_path);
+    }
+
+    // Launch the aria2c sidecar.
+    let aria2_child = spawn_aria2(&settings).ok();
+    let aria2 = Aria2::new(RPC_PORT, settings.rpc_secret.clone());
+
+    app.manage(AppState {
+        aria2: aria2.clone(),
+        settings: Mutex::new(settings.clone()),
+        config_path,
+        aria2_child: Mutex::new(aria2_child),
+    });
+
+    // Apply the autostart preference on launch.
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        let mgr = app.autolaunch();
+        let _ = if settings.autostart {
+            mgr.enable()
+        } else {
+            mgr.disable()
+        };
+    }
+
+    build_tray(app)?;
+    ipc::start(handle.clone());
+    start_clipboard_watch(handle);
+
+    Ok(())
+}
+
+/// System tray with Open / Quit, left-click opens the window.
+fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let show = MenuItem::with_id(app, "show", "Open IDM No Ads", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+
+    let click_handle = app.handle().clone();
+    let mut builder = TrayIconBuilder::with_id("main")
+        .tooltip("IDM No Ads")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "show" => ipc::surface_window(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(move |_tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                ipc::surface_window(&click_handle);
+            }
+        });
+
+    if let Some(icon) = app.default_window_icon().cloned() {
+        builder = builder.icon(icon);
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
+/// Minimize-to-tray: hide instead of closing when the user clicks X.
+fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
+    if let WindowEvent::CloseRequested { api, .. } = event {
+        let to_tray = window
+            .app_handle()
+            .try_state::<AppState>()
+            .map(|s| s.settings.lock().unwrap().minimize_to_tray)
+            .unwrap_or(true);
+        if to_tray {
+            api.prevent_close();
+            let _ = window.hide();
+        }
+    }
+}
+
+/// Optional clipboard URL auto-capture. Polls every ~1.5s when enabled.
+fn start_clipboard_watch(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_clipboard_manager::ClipboardExt;
+        let mut last = String::new();
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+            let enabled = app
+                .try_state::<AppState>()
+                .map(|s| s.settings.lock().unwrap().clipboard_watch)
+                .unwrap_or(false);
+            if !enabled {
+                continue;
+            }
+            if let Ok(text) = app.clipboard().read_text() {
+                let trimmed = text.trim().to_string();
+                if trimmed != last
+                    && is_downloadable_url(&trimmed)
+                {
+                    last = trimmed.clone();
+                    let msg = serde_json::json!({ "url": trimmed });
+                    let _ = ipc::process(&app, msg).await;
+                }
+            }
+        }
+    });
+}
+
+fn is_downloadable_url(s: &str) -> bool {
+    if !(s.starts_with("http://") || s.starts_with("https://") || s.starts_with("ftp://")) {
+        return false;
+    }
+    // crude heuristic: ends with a file-ish extension
+    let tail = s.split(['?', '#']).next().unwrap_or(s);
+    let exts = [
+        ".zip", ".rar", ".7z", ".exe", ".msi", ".mp4", ".mkv", ".mp3", ".flac", ".pdf",
+        ".iso", ".apk", ".dmg", ".tar", ".gz", ".doc", ".docx", ".xls", ".xlsx",
+    ];
+    exts.iter().any(|e| tail.to_lowercase().ends_with(e))
+}
+
+fn spawn_aria2(settings: &Settings) -> std::io::Result<std::process::Child> {
+    let exe = aria2_path();
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--enable-rpc")
+        .arg("--rpc-listen-all=false")
+        .arg(format!("--rpc-listen-port={RPC_PORT}"))
+        .arg(format!("--rpc-secret={}", settings.rpc_secret))
+        .arg("--rpc-allow-origin-all")
+        .arg("--continue=true")
+        .arg("--file-allocation=none")
+        .arg("--min-split-size=1M")
+        .arg("--split=16")
+        .arg("--max-connection-per-server=16")
+        .arg(format!(
+            "--max-concurrent-downloads={}",
+            settings.max_concurrent
+        ));
+    if !settings.default_dir.is_empty() {
+        cmd.arg(format!("--dir={}", settings.default_dir));
+    }
+    if settings.speed_limit > 0 {
+        cmd.arg(format!("--max-overall-download-limit={}K", settings.speed_limit));
+    }
+    if !settings.proxy.is_empty() {
+        cmd.arg(format!("--all-proxy={}", settings.proxy));
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.spawn()
+}
+
+/// Find the aria2c binary next to our own executable (installed as a sidecar).
+fn aria2_path() -> PathBuf {
+    let dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_else(|| PathBuf::from("."));
+    let candidates = if cfg!(windows) {
+        vec!["aria2c.exe", "aria2c-x86_64-pc-windows-msvc.exe"]
+    } else {
+        vec!["aria2c", "aria2c-x86_64-unknown-linux-gnu"]
+    };
+    for c in &candidates {
+        let p = dir.join(c);
+        if p.exists() {
+            return p;
+        }
+    }
+    dir.join(candidates[0])
+}
+
+fn random_secret() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
