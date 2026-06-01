@@ -157,11 +157,16 @@ jobs:
           if ($msi)   { Copy-Item $msi.FullName   "dist/IDMNoAds.msi" -Force }
           if ($msix)  { Copy-Item $msix.FullName  "dist/IDMNoAds.msix" -Force }
 
-          # Chromium extension zip (manifest at root; NEVER ship key.pem)
+          # Chromium extension zip (manifest at root; NEVER ship key.pem).
+          # The Chrome Web Store REJECTS the "key" field, so strip it from the
+          # published manifest. (The repo keeps "key" for local unpacked dev so
+          # the dev extension ID matches the native-host allowed_origins.)
           $cs = "ext-stage/chromium"
           New-Item -ItemType Directory -Force -Path $cs | Out-Null
-          Copy-Item chromium-extension/manifest.json,chromium-extension/background.js,chromium-extension/content.js,chromium-extension/popup.html,chromium-extension/popup.js,chromium-extension/options.html,chromium-extension/options.js $cs -Force
+          Copy-Item chromium-extension/background.js,chromium-extension/content.js,chromium-extension/popup.html,chromium-extension/popup.js,chromium-extension/options.html,chromium-extension/options.js $cs -Force
           Copy-Item chromium-extension/icons $cs/icons -Recurse -Force
+          # Use Node for a faithful JSON round-trip (preserves single-element arrays).
+          node -e "const fs=require('fs');const m=JSON.parse(fs.readFileSync('chromium-extension/manifest.json','utf8'));delete m.key;fs.writeFileSync('$cs/manifest.json',JSON.stringify(m,null,2))"
           Compress-Archive -Path "$cs/*" -DestinationPath "dist/IDMNoAds-chrome-extension.zip" -Force
 
           # Firefox extension zip
@@ -186,7 +191,8 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
           name: IDM No Ads v1.0.0
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          prerelease: false
+          make_latest: true
           body: |
             **IDM No Ads** — free, no-ads, segmented download manager for Windows.
 
@@ -196,7 +202,7 @@ jobs:
             | `IDMNoAds-setup.exe` | Recommended installer (NSIS, per-user, registers browser integration) |
             | `IDMNoAds.msi` | MSI installer (basic install) |
             | `IDMNoAds.msix` | MSIX package — for Microsoft Store sideloading / upload to Partner Center |
-            | `IDMNoAds-chrome-extension.zip` | Upload to Chrome Web Store / Edge Add-ons / Opera |
+            | `IDMNoAds-chrome-extension.zip` | Upload to Chrome Web Store / Edge Add-ons / Opera (no `key` field) |
             | `IDMNoAds-firefox-extension.zip` | Upload to Firefox AMO |
 
             > ⚠️ The NSIS/MSI installers are **unsigned**, so Windows SmartScreen shows an
