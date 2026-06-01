@@ -123,7 +123,8 @@ fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     build_tray(app)?;
     ipc::start(handle.clone());
-    start_clipboard_watch(handle);
+    start_clipboard_watch(handle.clone());
+    start_scheduler(handle);
 
     Ok(())
 }
@@ -203,6 +204,61 @@ fn start_clipboard_watch(app: tauri::AppHandle) {
             }
         }
     });
+}
+
+/// Scheduler: every 60 s check whether we are inside the configured time window
+/// and pause / unpause aria2 accordingly.  Outside the window all downloads are
+/// paused; inside they are unpaused (respecting the user's per-download pauses).
+fn start_scheduler(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            let state = match app.try_state::<AppState>() {
+                Some(s) => s,
+                None => continue,
+            };
+            let (enabled, start, stop, aria2) = {
+                let s = state.settings.lock().unwrap();
+                (
+                    s.scheduler_enabled,
+                    s.schedule_start.clone(),
+                    s.schedule_stop.clone(),
+                    state.aria2.clone(),
+                )
+            };
+            if !enabled {
+                continue;
+            }
+            if time_in_window(&start, &stop) {
+                let _ = aria2.unpause_all().await;
+            } else {
+                let _ = aria2.pause_all().await;
+            }
+        }
+    });
+}
+
+/// Returns true when the current local time is within [start, stop) (HH:MM).
+/// Handles overnight windows where stop < start (e.g. 22:00–06:00).
+fn time_in_window(start: &str, stop: &str) -> bool {
+    use chrono::Timelike;
+    let now = chrono::Local::now();
+    let now_m = now.hour() * 60 + now.minute();
+
+    let parse = |s: &str| -> u32 {
+        let mut it = s.splitn(2, ':');
+        let h: u32 = it.next().and_then(|x| x.parse().ok()).unwrap_or(0);
+        let m: u32 = it.next().and_then(|x| x.parse().ok()).unwrap_or(0);
+        h * 60 + m
+    };
+    let s = parse(start);
+    let e = parse(stop);
+    if s <= e {
+        now_m >= s && now_m < e
+    } else {
+        // overnight: active from start until midnight, then midnight until stop
+        now_m >= s || now_m < e
+    }
 }
 
 fn is_downloadable_url(s: &str) -> bool {

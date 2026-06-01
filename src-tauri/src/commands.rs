@@ -124,9 +124,8 @@ pub async fn save_settings(
     } else {
         opts["max-overall-download-limit"] = json!("0");
     }
-    if !settings.proxy.is_empty() {
-        opts["all-proxy"] = json!(settings.proxy);
-    }
+    // Always set all-proxy (empty string clears a previously configured proxy).
+    opts["all-proxy"] = json!(settings.proxy);
     let _ = state.aria2.change_global_option(opts).await;
 
     // Apply Windows startup preference.
