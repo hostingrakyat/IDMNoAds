@@ -1,7 +1,12 @@
 //! Local IPC server. The native-messaging host (`idmnoads-host.exe`) forwards
-//! capture requests from the browser extensions here over a Windows named pipe
+//! requests from the browser extensions here over a Windows named pipe
 //! (`\\.\pipe\idmnoads`), using the same 4-byte-LE-length + UTF-8-JSON framing
 //! as the native messaging protocol itself.
+//!
+//! Each request gets a JSON response written back on the same pipe connection:
+//!   * `{ "type": "get-config" }`  -> `{ "type": "config", "secret", "port" }`
+//!     (lets the extension auto-discover the aria2 RPC secret — no copy/paste)
+//!   * a download capture request   -> `{ "ok": true }` / `{ "ok": false, "error" }`
 use crate::AppState;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
@@ -48,8 +53,8 @@ async fn handle(
     mut pipe: tokio::net::windows::named_pipe::NamedPipeServer,
     app: AppHandle,
 ) -> Result<(), String> {
-    use tokio::io::AsyncReadExt;
-    // 4-byte little-endian length prefix.
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    // ---- read request: 4-byte little-endian length prefix + JSON ----
     let mut len_buf = [0u8; 4];
     pipe.read_exact(&mut len_buf).await.map_err(|e| e.to_string())?;
     let len = u32::from_le_bytes(len_buf) as usize;
@@ -59,11 +64,42 @@ async fn handle(
     let mut buf = vec![0u8; len];
     pipe.read_exact(&mut buf).await.map_err(|e| e.to_string())?;
     let msg: Value = serde_json::from_slice(&buf).map_err(|e| e.to_string())?;
-    process(&app, msg).await
+
+    // ---- process and write the JSON response back on the same pipe ----
+    let response = handle_message(&app, msg).await;
+    let out = serde_json::to_vec(&response).map_err(|e| e.to_string())?;
+    pipe.write_all(&(out.len() as u32).to_le_bytes())
+        .await
+        .map_err(|e| e.to_string())?;
+    pipe.write_all(&out).await.map_err(|e| e.to_string())?;
+    pipe.flush().await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Handle one request message and return the JSON response.
+pub async fn handle_message(app: &AppHandle, msg: Value) -> Value {
+    let kind = msg.get("type").and_then(|t| t.as_str()).unwrap_or("download");
+    match kind {
+        // The extension asks for the aria2 RPC secret + port so its popup can
+        // poll the engine directly — delivered automatically, no copy/paste.
+        "get-config" => {
+            let secret = {
+                let state = app.state::<AppState>();
+                let s = state.settings.lock().unwrap();
+                s.rpc_secret.clone()
+            };
+            json!({ "type": "config", "secret": secret, "port": crate::RPC_PORT })
+        }
+        // Default: treat as a download capture request.
+        _ => match add_capture(app, &msg).await {
+            Ok(()) => json!({ "ok": true }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        },
+    }
 }
 
 /// Turn a capture request into an aria2 download and surface the window.
-pub async fn process(app: &AppHandle, msg: Value) -> Result<(), String> {
+async fn add_capture(app: &AppHandle, msg: &Value) -> Result<(), String> {
     let url = msg
         .get("url")
         .and_then(|u| u.as_str())

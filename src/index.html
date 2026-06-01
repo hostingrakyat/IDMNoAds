@@ -39,6 +39,7 @@
           <li data-cat="Compressed"><span class="dot"></span><span data-i18n="cat_compressed">Compressed</span><b id="cnt-Compressed">0</b></li>
         </ul>
         <div class="sidebar-bottom">
+          <button class="nav-btn" id="navExtension" data-i18n="browser_ext">🧩 Browser extension</button>
           <button class="nav-btn" id="navSettings" data-i18n="settings">⚙ Settings</button>
           <button class="nav-btn" id="navAbout" data-i18n="about">ⓘ About</button>
         </div>
@@ -187,6 +188,40 @@
         </div>
         <div class="modal-actions">
           <button class="btn primary" id="about_close" data-i18n="close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Browser integration modal -->
+    <div class="modal-backdrop" id="extModal" hidden>
+      <div class="modal">
+        <div class="ext-head">
+          <span class="ext-emoji">🧩</span>
+          <h3 data-i18n="ext_title">Add IDM No Ads to your browser</h3>
+        </div>
+        <p class="ext-sub" data-i18n="ext_sub">Install the free extension so every download in your
+          browser is captured automatically — one click, full speed. No setup, no copy-paste.</p>
+        <div class="ext-btns">
+          <button class="ext-btn chrome" id="extChrome">
+            <b>Chrome · Edge · Brave · Opera</b>
+            <span data-i18n="ext_get">Get the extension</span>
+          </button>
+          <button class="ext-btn firefox" id="extFirefox">
+            <b>Firefox</b>
+            <span data-i18n="ext_get">Get the extension</span>
+          </button>
+        </div>
+        <details class="ext-manual">
+          <summary data-i18n="ext_manual">Stores not approved yet? Install manually</summary>
+          <p data-i18n="ext_manual_text">Download the extension zip from the Releases page, unzip it,
+            then load it unpacked: Chrome/Edge → <code>chrome://extensions</code> → Developer mode →
+            Load unpacked. Firefox → <code>about:debugging</code> → Load Temporary Add-on.</p>
+          <button class="btn" id="extReleases" data-i18n="ext_open_releases">Open Releases page</button>
+        </details>
+        <p class="ext-note" data-i18n="ext_note">✓ The connection secret is shared automatically — you
+          never have to copy or paste anything.</p>
+        <div class="modal-actions">
+          <button class="btn primary" id="ext_close" data-i18n="ext_done">Done</button>
         </div>
       </div>
     </div>

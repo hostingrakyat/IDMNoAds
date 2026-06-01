@@ -18,7 +18,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, WindowEvent};
 
-const RPC_PORT: u16 = 6800;
+pub(crate) const RPC_PORT: u16 = 6800;
 
 pub struct AppState {
     pub aria2: Aria2,
@@ -286,7 +286,7 @@ fn start_clipboard_watch(app: tauri::AppHandle) {
                 {
                     last = trimmed.clone();
                     let msg = serde_json::json!({ "url": trimmed });
-                    let _ = ipc::process(&app, msg).await;
+                    let _ = ipc::handle_message(&app, msg).await;
                 }
             }
         }

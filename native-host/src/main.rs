@@ -35,20 +35,32 @@ fn write_message<W: Write>(w: &mut W, payload: &[u8]) -> io::Result<()> {
     w.flush()
 }
 
+/// Forward one message to the desktop app and return its JSON response.
 #[cfg(windows)]
-fn forward_to_app(payload: &[u8]) -> io::Result<()> {
+fn forward_to_app(payload: &[u8]) -> io::Result<Vec<u8>> {
     use std::fs::OpenOptions;
     let mut pipe = OpenOptions::new()
         .read(true)
         .write(true)
         .open(PIPE_NAME)?;
+    // Send the request frame.
     pipe.write_all(&(payload.len() as u32).to_le_bytes())?;
     pipe.write_all(payload)?;
-    pipe.flush()
+    pipe.flush()?;
+    // Read the response frame (4-byte LE length prefix + JSON).
+    let mut len_buf = [0u8; 4];
+    pipe.read_exact(&mut len_buf)?;
+    let len = u32::from_le_bytes(len_buf) as usize;
+    if len > MAX_MESSAGE {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "oversized response"));
+    }
+    let mut resp = vec![0u8; len];
+    pipe.read_exact(&mut resp)?;
+    Ok(resp)
 }
 
 #[cfg(not(windows))]
-fn forward_to_app(_payload: &[u8]) -> io::Result<()> {
+fn forward_to_app(_payload: &[u8]) -> io::Result<Vec<u8>> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         "named pipe IPC is only available on Windows",
@@ -60,17 +72,19 @@ fn main() {
     let stdout = io::stdout();
 
     while let Some(msg) = read_message(&mut stdin.lock()) {
-        let reply = match forward_to_app(&msg) {
-            Ok(()) => serde_json::json!({ "ok": true }),
-            Err(e) => serde_json::json!({
+        // Forward to the desktop app and relay its JSON response verbatim to the
+        // browser extension (e.g. the aria2 config, or a download ack).
+        let bytes = match forward_to_app(&msg) {
+            Ok(resp) => resp,
+            Err(e) => serde_json::to_vec(&serde_json::json!({
                 "ok": false,
                 "title": "IDM No Ads",
                 "notify": format!(
                     "IDM No Ads desktop app isn't running ({e}). Open it and try the download again."
                 )
-            }),
+            }))
+            .unwrap_or_else(|_| b"{}".to_vec()),
         };
-        let bytes = serde_json::to_vec(&reply).unwrap_or_else(|_| b"{}".to_vec());
         if write_message(&mut stdout.lock(), &bytes).is_err() {
             break;
         }

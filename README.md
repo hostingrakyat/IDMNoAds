@@ -87,8 +87,10 @@ Until the extensions are approved on the stores you can load them unpacked:
 - **Firefox:** `about:debugging` → *This Firefox* → *Load Temporary Add-on* →
   select `firefox-extension/manifest.json`.
 
-Then open the app → **Settings → Advanced**, copy the **aria2 RPC secret**, and
-paste it into the extension's **Options** so the popup can show your live queue.
+That's it — the first time you open the app it shows a **"Add IDM No Ads to your
+browser"** prompt with one-click store links. The extension auto-discovers the
+aria2 RPC secret from the desktop app over the native-messaging connection, so
+the popup's live queue works immediately with **no copy-paste**.
 
 The extension IDs are **pinned** so they always match the native-host manifest:
 

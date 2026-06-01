@@ -198,6 +198,12 @@ function drawGraph() {
 function openModal(id) { $(id).hidden = false; }
 function closeModal(id) { $(id).hidden = true; }
 
+// Open a URL in the user's real browser (not inside the app webview).
+function openExternal(url) {
+  if (TAURI.opener) TAURI.opener.openUrl(url);
+  else invoke("open_url", { url });
+}
+
 async function addUrls(text, dir, conn) {
   const urls = text.split(/[\r\n]+/).map((s) => s.trim()).filter(Boolean);
   for (const url of urls) {
@@ -229,7 +235,8 @@ function defaultSettings() {
   return { max_concurrent: 5, connections: 16, speed_limit: 0, default_dir: "",
     proxy: "", clipboard_watch: false, autostart: false, minimize_to_tray: true,
     scheduler_enabled: false, schedule_start: "01:00", schedule_stop: "08:00",
-    filetypes: ALL_FILETYPES.slice(), language: "en", theme: "dark", rpc_secret: "" };
+    filetypes: ALL_FILETYPES.slice(), language: "en", theme: "dark", rpc_secret: "",
+    browser_prompt_shown: false };
 }
 function applySettingsToForm() {
   const s = state.settings;
@@ -280,6 +287,15 @@ async function saveSettings() {
   s.theme = state.theme;
   await invoke("save_settings", { settings: s });
   closeModal("settingsModal");
+}
+
+// Show the "add the extension to your browser" prompt once, on first launch.
+function maybeShowFirstRunExtension() {
+  if (state.settings && !state.settings.browser_prompt_shown) {
+    openModal("extModal");
+    state.settings.browser_prompt_shown = true;
+    invoke("save_settings", { settings: state.settings }).catch(() => {});
+  }
 }
 
 async function pickFolder(targetInput) {
@@ -369,6 +385,16 @@ function wire() {
     invoke("write_clipboard", { text: $("s_rpc_secret").value }).catch(() => {});
   };
 
+  // Browser-integration modal
+  $("navExtension").onclick = () => openModal("extModal");
+  $("ext_close").onclick = () => closeModal("extModal");
+  $("extChrome").onclick = () =>
+    openExternal("https://chromewebstore.google.com/detail/ikbamigoaahjngjceemkppoimlphgmii");
+  $("extFirefox").onclick = () =>
+    openExternal("https://addons.mozilla.org/firefox/addon/idm-no-ads/");
+  $("extReleases").onclick = () =>
+    openExternal("https://github.com/hostingrakyat/IDMNoAds/releases/latest");
+
   // About modal
   $("navAbout").onclick = () => openModal("aboutModal");
   $("about_close").onclick = () => closeModal("aboutModal");
@@ -377,9 +403,7 @@ function wire() {
   document.querySelectorAll(".socials a").forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
-      const url = a.href;
-      if (TAURI.opener) TAURI.opener.openUrl(url);
-      else invoke("open_url", { url });
+      openExternal(a.href);
     });
   });
 
@@ -400,6 +424,7 @@ async function main() {
   wire();
   setupEvents();
   await loadSettings();
+  maybeShowFirstRunExtension();
   await refresh();
   await pollStat();
   setInterval(refresh, 1000);

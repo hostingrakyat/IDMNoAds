@@ -86,6 +86,17 @@ document.getElementById("opts").onclick = () => chrome.runtime.openOptionsPage()
 document.getElementById("pauseAll").onclick = () => rpc("aria2.pauseAll").then(tick).catch(() => {});
 document.getElementById("resumeAll").onclick = () => rpc("aria2.unpauseAll").then(tick).catch(() => {});
 
+// If we don't have the secret yet, ask the background to fetch it from the app.
+chrome.runtime.sendMessage({ type: "ensure-config" });
+// Re-render immediately when the background stores the freshly-fetched config.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.rpcSecret || changes.rpcPort)) {
+    if (changes.rpcSecret) cfg.rpcSecret = changes.rpcSecret.newValue;
+    if (changes.rpcPort) cfg.rpcPort = changes.rpcPort.newValue;
+    tick();
+  }
+});
+
 chrome.storage.local.get(DEFAULTS).then((stored) => {
   cfg = { ...DEFAULTS, ...stored };
   tick();

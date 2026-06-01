@@ -22,6 +22,9 @@ pub struct Settings {
     /// aria2 RPC secret — generated once and reused so the browser
     /// extension can keep talking to the same daemon.
     pub rpc_secret: String,
+    /// Whether the first-run "add the extension to your browser" prompt has
+    /// already been shown.
+    pub browser_prompt_shown: bool,
 }
 
 impl Default for Settings {
@@ -48,6 +51,7 @@ impl Default for Settings {
             language: "en".into(),
             theme: "dark".into(),
             rpc_secret: String::new(),
+            browser_prompt_shown: false,
         }
     }
 }

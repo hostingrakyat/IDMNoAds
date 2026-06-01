@@ -25,8 +25,14 @@ function connect() {
   try {
     port = chrome.runtime.connectNative(HOST);
     port.onMessage.addListener((msg) => {
+      if (!msg) return;
+      // Auto-discovered aria2 RPC config from the desktop app — store it so the
+      // popup can poll the engine directly without the user copy/pasting a secret.
+      if (msg.type === "config" && msg.secret) {
+        chrome.storage.local.set({ rpcSecret: msg.secret, rpcPort: msg.port || 6800 });
+      }
       // The host can ask us to show a notification (e.g. "queued").
-      if (msg && msg.notify) {
+      if (msg.notify) {
         notify(msg.title || "IDM No Ads", msg.notify);
       }
     });
@@ -35,6 +41,8 @@ function connect() {
       console.warn("[idmnoads] native host disconnected", err && err.message);
       port = null; // reconnect lazily on next send
     });
+    // Pull the RPC secret/port as soon as we connect.
+    requestConfig();
   } catch (e) {
     console.error("[idmnoads] connectNative failed", e);
     port = null;
@@ -65,6 +73,18 @@ function notify(title, message) {
     title,
     message,
   });
+}
+
+/** Ask the desktop app for the aria2 RPC secret + port (auto, no copy/paste). */
+function requestConfig() {
+  const p = connect();
+  if (p) {
+    try {
+      p.postMessage({ type: "get-config" });
+    } catch (_) {
+      port = null;
+    }
+  }
 }
 
 async function getOptions() {
@@ -147,8 +167,12 @@ function buildMenus() {
     });
   });
 }
-chrome.runtime.onInstalled.addListener(buildMenus);
-chrome.runtime.onStartup.addListener(buildMenus);
+function onWake() {
+  buildMenus();
+  requestConfig();
+}
+chrome.runtime.onInstalled.addListener(onWake);
+chrome.runtime.onStartup.addListener(onWake);
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "idm-link") {
@@ -171,6 +195,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     })();
   } else if (msg.type === "capture") {
     capture(msg.url, msg.opts || {});
+  } else if (msg.type === "ensure-config") {
+    // Popup opened — make sure we (re)fetch the RPC secret from the app.
+    requestConfig();
   } else if (msg.type === "ping-host") {
     const p = connect();
     sendResponse({ connected: !!p });

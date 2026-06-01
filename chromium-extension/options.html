@@ -44,11 +44,12 @@
       <div class="card">
         <label class="row">Port: <input type="number" id="rpcPort" style="width:110px" /></label>
         <label class="row" style="flex-direction:column; align-items:stretch;">
-          <span>Secret</span>
-          <input type="text" id="rpcSecret" placeholder="paste from desktop app → Settings → Advanced" />
+          <span>Secret <small style="color:#22c55e">(auto-detected)</small></span>
+          <input type="text" id="rpcSecret" placeholder="filled in automatically when the desktop app is running" />
         </label>
-        <div class="hint">The popup uses these to show your live download queue. Open the desktop
-          app, go to Settings → Advanced, copy the RPC secret and paste it here.</div>
+        <div class="hint">✓ These are detected <b>automatically</b> from the desktop app over the
+          native-messaging connection — you don't need to copy or paste anything. They're shown
+          here only for troubleshooting.</div>
       </div>
 
       <button class="save" id="save">Save</button><span id="saved">✓ Saved</span>

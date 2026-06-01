@@ -25,12 +25,19 @@ function connect() {
   try {
     port = browser.runtime.connectNative(HOST);
     port.onMessage.addListener((msg) => {
-      if (msg && msg.notify) notify(msg.title || "IDM No Ads", msg.notify);
+      if (!msg) return;
+      // Auto-discovered aria2 RPC config — store it so the popup needs no secret.
+      if (msg.type === "config" && msg.secret) {
+        browser.storage.local.set({ rpcSecret: msg.secret, rpcPort: msg.port || 6800 });
+      }
+      if (msg.notify) notify(msg.title || "IDM No Ads", msg.notify);
     });
     port.onDisconnect.addListener((p) => {
       console.warn("[idmnoads] native host disconnected", p.error && p.error.message);
       port = null;
     });
+    // Pull the RPC secret/port as soon as we connect.
+    requestConfig();
   } catch (e) {
     console.error("[idmnoads] connectNative failed", e);
     port = null;
@@ -55,6 +62,18 @@ function sendToHost(payload) {
 
 function notify(title, message) {
   browser.notifications.create({ type: "basic", iconUrl: "icons/icon-128.png", title, message });
+}
+
+/** Ask the desktop app for the aria2 RPC secret + port (auto, no copy/paste). */
+function requestConfig() {
+  const p = connect();
+  if (p) {
+    try {
+      p.postMessage({ type: "get-config" });
+    } catch (_) {
+      port = null;
+    }
+  }
 }
 
 async function getOptions() {
@@ -127,8 +146,12 @@ function buildMenus() {
     });
   });
 }
-browser.runtime.onInstalled.addListener(buildMenus);
-browser.runtime.onStartup.addListener(buildMenus);
+function onWake() {
+  buildMenus();
+  requestConfig();
+}
+browser.runtime.onInstalled.addListener(onWake);
+browser.runtime.onStartup.addListener(onWake);
 
 browser.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "idm-link") {
@@ -147,6 +170,8 @@ browser.runtime.onMessage.addListener(async (msg, sender) => {
     }
   } else if (msg.type === "capture") {
     capture(msg.url, msg.opts || {});
+  } else if (msg.type === "ensure-config") {
+    requestConfig();
   } else if (msg.type === "ping-host") {
     return { connected: !!connect() };
   }
