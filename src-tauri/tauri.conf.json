@@ -28,13 +28,18 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": ["nsis", "msi", "app"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico",
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/Square44x44Logo.png",
+      "icons/Square150x150Logo.png",
+      "icons/Square284x284Logo.png",
+      "icons/Square310x310Logo.png",
+      "icons/StoreLogo.png"
     ],
     "externalBin": ["binaries/aria2c", "binaries/idmnoads-host"],
     "resources": ["resources/*"],
@@ -48,7 +53,9 @@
       "nsis": {
         "installerHooks": "nsis/hooks.nsi",
         "installMode": "currentUser"
-      }
+      },
+      "packageIdentityName": "IrRiovanStyxRoring.IDMNoAds",
+      "publisherDisplayName": "Ir. Riovan Styx Roring"
     }
   },
   "plugins": {}

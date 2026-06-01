@@ -26,6 +26,9 @@ tokio = { version = "1", features = ["net", "io-util", "rt", "rt-multi-thread", 
 rand = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

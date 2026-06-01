@@ -59,8 +59,50 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Build Tauri app (MSI + NSIS setup.exe)
-        run: tauri build
+      - name: Create self-signed certificate for MSIX signing
+        shell: pwsh
+        run: |
+          # MSIX packages must be signed to install. For CI/sideloading we use a
+          # self-signed cert. Partner Center re-signs with the Microsoft certificate
+          # on upload, so this signature is only needed for local testing.
+          $cert = New-SelfSignedCertificate `
+            -Subject "CN=IDMNoAdsTest, O=IDMNoAds, C=ID" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -Type CodeSigningCert `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "IDMNoAds CI Test Signing"
+          $pwd = ConvertTo-SecureString -String "idmnoads" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath msix-sign.pfx -Password $pwd
+          Write-Host "MSIX_CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Build Tauri app (MSI + NSIS setup.exe + MSIX)
+        run: tauri build --bundles nsis,msi,app
+        env:
+          # Self-signed publisher must match <Identity Publisher> in AppxManifest.
+          # The template uses __TAURI_PUBLISHER__ which Tauri fills from tauri.conf.json;
+          # for the MSIX the Publisher CN must match the cert Subject.
+          TAURI_SIGNING_PRIVATE_KEY: ""
+
+      - name: Sign MSIX with self-signed certificate
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem -Recurse src-tauri/target/release/bundle/app -Filter *.msix |
+                  Select-Object -First 1
+          if (-not $msix) {
+            Write-Host "No MSIX found — skipping signing"
+            exit 0
+          }
+          # Use signtool from the Windows SDK (pre-installed on windows-latest).
+          $signtool = Get-ChildItem -Recurse "C:\Program Files (x86)\Windows Kits\10\bin" `
+                        -Filter signtool.exe | Select-Object -Last 1
+          if (-not $signtool) {
+            Write-Warning "signtool not found; MSIX will be unsigned"
+            exit 0
+          }
+          $pwd = ConvertTo-SecureString -String "idmnoads" -Force -AsPlainText
+          & $signtool.FullName sign /fd SHA256 /f msix-sign.pfx /p idmnoads `
+              /tr http://timestamp.digicert.com /td SHA256 $msix.FullName
+          Write-Host "Signed: $($msix.FullName)"
 
       - name: Stage release artifacts
         shell: pwsh
@@ -70,8 +112,10 @@ jobs:
           # Installers
           $setup = Get-ChildItem -Recurse src-tauri/target/release/bundle/nsis -Filter *.exe | Select-Object -First 1
           $msi   = Get-ChildItem -Recurse src-tauri/target/release/bundle/msi  -Filter *.msi | Select-Object -First 1
+          $msix  = Get-ChildItem -Recurse src-tauri/target/release/bundle/app  -Filter *.msix | Select-Object -First 1
           if ($setup) { Copy-Item $setup.FullName "dist/IDMNoAds-setup.exe" -Force }
           if ($msi)   { Copy-Item $msi.FullName   "dist/IDMNoAds.msi" -Force }
+          if ($msix)  { Copy-Item $msix.FullName  "dist/IDMNoAds.msix" -Force }
 
           # Chromium extension zip (manifest at root; NEVER ship key.pem)
           $cs = "ext-stage/chromium"
@@ -111,11 +155,15 @@ jobs:
             | ---- | ------- |
             | `IDMNoAds-setup.exe` | Recommended installer (NSIS, per-user, registers browser integration) |
             | `IDMNoAds.msi` | MSI installer (basic install) |
+            | `IDMNoAds.msix` | MSIX package — for Microsoft Store sideloading / upload to Partner Center |
             | `IDMNoAds-chrome-extension.zip` | Upload to Chrome Web Store / Edge Add-ons / Opera |
             | `IDMNoAds-firefox-extension.zip` | Upload to Firefox AMO |
 
-            > ⚠️ The installer is **unsigned**, so Windows SmartScreen shows an
+            > ⚠️ The NSIS/MSI installers are **unsigned**, so Windows SmartScreen shows an
             > "Unknown publisher" warning. Click **More info → Run anyway**.
+            > The MSIX is self-signed (CI certificate); to install it locally, right-click
+            > → Properties → Digital Signatures → install the cert to Trusted Publishers first,
+            > or install via `Add-AppxPackage`. The Store version is signed by Microsoft.
 
             Created by **Ir. Riovan Styx Roring**.
           files: dist/*

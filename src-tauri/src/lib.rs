@@ -123,9 +123,95 @@ fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     build_tray(app)?;
     ipc::start(handle.clone());
+    #[cfg(windows)]
+    register_native_host(app).unwrap_or_else(|e| eprintln!("[native-host] registration failed: {e}"));
     start_clipboard_watch(handle.clone());
     start_scheduler(handle);
 
+    Ok(())
+}
+
+/// Register the native-messaging host at app first-run.
+///
+/// NSIS/MSI installs do this at install-time via `nsis/hooks.nsi`.  For MSIX
+/// (Microsoft Store) packages, the NSIS post-install hook never runs, so we
+/// perform the same registry writes here at runtime.  A sentinel flag file
+/// prevents redundant re-registration on every subsequent launch.
+#[cfg(windows)]
+fn register_native_host(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("idmnoads"));
+    std::fs::create_dir_all(&config_dir)?;
+
+    // Only register once — skip if the sentinel is present.
+    let sentinel = config_dir.join("native_host_registered");
+    if sentinel.exists() {
+        return Ok(());
+    }
+
+    // Resolve the host executable path at runtime (works for MSIX + NSIS).
+    let exe_dir = std::env::current_exe()?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let host_exe = ["idmnoads-host.exe", "idmnoads-host-x86_64-pc-windows-msvc.exe"]
+        .iter()
+        .map(|name| exe_dir.join(name))
+        .find(|p| p.exists())
+        .unwrap_or_else(|| exe_dir.join("idmnoads-host.exe"));
+
+    // Write the two native-messaging manifest JSON files.
+    let chrome_manifest = config_dir.join("com.idmnoads.host.chrome.json");
+    let firefox_manifest = config_dir.join("com.idmnoads.host.firefox.json");
+    let host_path = host_exe.to_string_lossy().replace('\\', "\\\\");
+
+    std::fs::write(
+        &chrome_manifest,
+        format!(
+            r#"{{
+  "name": "com.idmnoads.host",
+  "description": "IDM No Ads native messaging host",
+  "path": "{host_path}",
+  "type": "stdio",
+  "allowed_origins": [ "chrome-extension://ikbamigoaahjngjceemkppoimlphgmii/" ]
+}}"#
+        ),
+    )?;
+    std::fs::write(
+        &firefox_manifest,
+        format!(
+            r#"{{
+  "name": "com.idmnoads.host",
+  "description": "IDM No Ads native messaging host",
+  "path": "{host_path}",
+  "type": "stdio",
+  "allowed_extensions": [ "idmnoads@hostingrakyat" ]
+}}"#
+        ),
+    )?;
+
+    // Write HKCU registry keys for each browser (no elevation required).
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let chrome_path = chrome_manifest.to_string_lossy().to_string();
+    let firefox_path = firefox_manifest.to_string_lossy().to_string();
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let browsers = [
+        (r"Software\Google\Chrome\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
+        (r"Software\Chromium\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
+        (r"Software\Microsoft\Edge\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
+        (r"Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.idmnoads.host", chrome_path.as_str()),
+        (r"Software\Mozilla\NativeMessagingHosts\com.idmnoads.host", firefox_path.as_str()),
+    ];
+    for (key_path, manifest_path) in &browsers {
+        let (key, _) = hkcu.create_subkey(key_path)?;
+        key.set_value("", manifest_path)?;
+    }
+
+    // Write sentinel so we skip this on subsequent launches.
+    std::fs::write(&sentinel, b"")?;
     Ok(())
 }
 

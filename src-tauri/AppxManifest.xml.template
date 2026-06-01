@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IDM No Ads — custom AppxManifest template for Tauri 2 MSIX packaging.
+
+  Tauri substitutes __TAURI_*__ tokens before packaging.  All additions vs.
+  the default Tauri-generated manifest are marked with "IDM No Ads addition".
+
+  runFullTrust restricted capability:
+    Required because idmnoads-host.exe must be launchable by Chrome / Edge /
+    Firefox / Brave as a native-messaging host subprocess.  Browsers resolve
+    the executable path from the HKCU registry key and spawn it directly; this
+    only works if the executable is declared as a full-trust Win32 process.
+    During Partner Center submission, Microsoft will ask for justification —
+    state that the host bridges browser extensions to the local desktop app.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 mp rescap desktop2">
+
+  <Identity
+    Name="__TAURI_PACKAGE_IDENTITY_NAME__"
+    Publisher="__TAURI_PUBLISHER__"
+    Version="__TAURI_VERSION__.0"
+    ProcessorArchitecture="x64" />
+
+  <mp:PhoneIdentity
+    PhoneProductId="__TAURI_PACKAGE_IDENTITY_NAME__"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <DisplayName>__TAURI_PRODUCT_NAME__</DisplayName>
+    <PublisherDisplayName>__TAURI_PUBLISHER_DISPLAY_NAME__</PublisherDisplayName>
+    <Logo>icons\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.17763.0"
+      MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="__TAURI_APP_ID__"
+      Executable="__TAURI_EXECUTABLE__"
+      EntryPoint="Windows.FullTrustApplication">
+
+      <uap:VisualElements
+        DisplayName="__TAURI_PRODUCT_NAME__"
+        Description="__TAURI_SHORT_DESCRIPTION__"
+        BackgroundColor="transparent"
+        Square150x150Logo="icons\Square150x150Logo.png"
+        Square44x44Logo="icons\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="icons\Square284x284Logo.png"
+          Square310x310Logo="icons\Square310x310Logo.png"
+          Square71x71Logo="icons\Square71x71Logo.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+            <uap:ShowOn Tile="square310x310Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="icons\Square310x310Logo.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+
+        <!-- IDM No Ads addition: allow browsers to spawn idmnoads-host.exe  -->
+        <!-- as a full-trust Win32 process (native-messaging host).           -->
+        <desktop2:Extension
+          Category="windows.fullTrustProcess"
+          Executable="idmnoads-host.exe"
+          xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2" />
+
+        <!-- IDM No Ads addition: .torrent file association -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="torrent">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.torrent</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>BitTorrent File</uap:DisplayName>
+            <uap:Logo>icons\Square44x44Logo.png</uap:Logo>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <!-- IDM No Ads addition: .metalink file association -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="metalink">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.metalink</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Metalink File</uap:DisplayName>
+            <uap:Logo>icons\Square44x44Logo.png</uap:Logo>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Standard capabilities -->
+    <Capability Name="internetClient" />
+
+    <!-- IDM No Ads addition: required for fullTrustProcess (idmnoads-host.exe) -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+</Package>
