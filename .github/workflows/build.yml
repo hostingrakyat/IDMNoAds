@@ -1,0 +1,123 @@
+name: Build IDM No Ads
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ARIA2_VERSION: "1.37.0"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Update Rust toolchain
+        run: rustup update stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            native-host
+
+      - name: Download aria2 sidecar (segmented download engine)
+        shell: pwsh
+        run: |
+          $ver = "${{ env.ARIA2_VERSION }}"
+          $url = "https://github.com/aria2/aria2/releases/download/release-$ver/aria2-$ver-win-64bit-build1.zip"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile aria2.zip
+          Expand-Archive aria2.zip -DestinationPath aria2tmp -Force
+          $exe = Get-ChildItem -Recurse aria2tmp -Filter aria2c.exe | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item $exe.FullName "src-tauri/binaries/aria2c-x86_64-pc-windows-msvc.exe" -Force
+
+      - name: Build native messaging host
+        run: cargo build --release --manifest-path native-host/Cargo.toml
+
+      - name: Stage native host as Tauri sidecar
+        shell: pwsh
+        run: Copy-Item native-host/target/release/idmnoads-host.exe "src-tauri/binaries/idmnoads-host-x86_64-pc-windows-msvc.exe" -Force
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
+      - name: Build Tauri app (MSI + NSIS setup.exe)
+        run: tauri build
+
+      - name: Stage release artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          # Installers
+          $setup = Get-ChildItem -Recurse src-tauri/target/release/bundle/nsis -Filter *.exe | Select-Object -First 1
+          $msi   = Get-ChildItem -Recurse src-tauri/target/release/bundle/msi  -Filter *.msi | Select-Object -First 1
+          if ($setup) { Copy-Item $setup.FullName "dist/IDMNoAds-setup.exe" -Force }
+          if ($msi)   { Copy-Item $msi.FullName   "dist/IDMNoAds.msi" -Force }
+
+          # Chromium extension zip (manifest at root; NEVER ship key.pem)
+          $cs = "ext-stage/chromium"
+          New-Item -ItemType Directory -Force -Path $cs | Out-Null
+          Copy-Item chromium-extension/manifest.json,chromium-extension/background.js,chromium-extension/content.js,chromium-extension/popup.html,chromium-extension/popup.js,chromium-extension/options.html,chromium-extension/options.js $cs -Force
+          Copy-Item chromium-extension/icons $cs/icons -Recurse -Force
+          Compress-Archive -Path "$cs/*" -DestinationPath "dist/IDMNoAds-chrome-extension.zip" -Force
+
+          # Firefox extension zip
+          $fs = "ext-stage/firefox"
+          New-Item -ItemType Directory -Force -Path $fs | Out-Null
+          Copy-Item firefox-extension/manifest.json,firefox-extension/background.js,firefox-extension/content.js,firefox-extension/popup.html,firefox-extension/popup.js,firefox-extension/options.html,firefox-extension/options.js $fs -Force
+          Copy-Item firefox-extension/icons $fs/icons -Recurse -Force
+          Compress-Archive -Path "$fs/*" -DestinationPath "dist/IDMNoAds-firefox-extension.zip" -Force
+
+          Get-ChildItem dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: IDMNoAds-windows
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/claude/new-session-FN7z3'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
+          name: IDM No Ads v1.0.0
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          body: |
+            **IDM No Ads** — free, no-ads, segmented download manager for Windows.
+
+            ### Downloads
+            | File | Purpose |
+            | ---- | ------- |
+            | `IDMNoAds-setup.exe` | Recommended installer (NSIS, per-user, registers browser integration) |
+            | `IDMNoAds.msi` | MSI installer (basic install) |
+            | `IDMNoAds-chrome-extension.zip` | Upload to Chrome Web Store / Edge Add-ons / Opera |
+            | `IDMNoAds-firefox-extension.zip` | Upload to Firefox AMO |
+
+            > ⚠️ The installer is **unsigned**, so Windows SmartScreen shows an
+            > "Unknown publisher" warning. Click **More info → Run anyway**.
+
+            Created by **Ir. Riovan Styx Roring**.
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

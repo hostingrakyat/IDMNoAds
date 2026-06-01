@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { width: 340px; margin: 0; font-family: "Segoe UI", system-ui, sans-serif;
+        background: #0f1420; color: #e6ebf5; }
+      header { background: linear-gradient(90deg, #2563eb, #1d4ed8); padding: 10px 12px;
+        display: flex; align-items: center; gap: 8px; }
+      header img { width: 22px; height: 22px; border-radius: 5px; }
+      header b { font-size: 14px; }
+      header .stat { margin-left: auto; font-size: 12px; opacity: .9; }
+      .list { max-height: 360px; overflow: auto; }
+      .item { padding: 9px 12px; border-bottom: 1px solid #2a3550; }
+      .name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .bar { height: 6px; background: #222b40; border-radius: 99px; margin: 5px 0 3px; overflow: hidden; }
+      .bar > span { display: block; height: 100%; background: linear-gradient(90deg, #2563eb, #38bdf8); }
+      .meta { font-size: 11px; color: #93a0bd; display: flex; justify-content: space-between; }
+      .empty, .warn { padding: 18px 12px; color: #93a0bd; font-size: 12px; text-align: center; }
+      .warn a { color: #38bdf8; cursor: pointer; }
+      footer { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid #2a3550; }
+      button { flex: 1; background: #222b40; color: #e6ebf5; border: 1px solid #2a3550;
+        border-radius: 7px; padding: 6px; font-size: 12px; cursor: pointer; }
+      button:hover { border-color: #2563eb; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="icons/icon-48.png" />
+      <b>IDM No Ads</b>
+      <span class="stat" id="stat">↓ 0 B/s</span>
+    </header>
+    <div class="list" id="list"><div class="empty">Loading…</div></div>
+    <footer>
+      <button id="pauseAll">⏸ Pause all</button>
+      <button id="resumeAll">▶ Resume all</button>
+      <button id="opts">⚙ Options</button>
+    </footer>
+    <script src="popup.js"></script>
+  </body>
+</html>
