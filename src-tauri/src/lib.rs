@@ -175,7 +175,7 @@ fn register_native_host(app: &tauri::App) -> Result<(), Box<dyn std::error::Erro
   "description": "IDM No Ads native messaging host",
   "path": "{host_path}",
   "type": "stdio",
-  "allowed_origins": [ "chrome-extension://ikbamigoaahjngjceemkppoimlphgmii/" ]
+  "allowed_origins": [ "chrome-extension://ikbamigoaahjngjceemkppoimlphgmii/", "chrome-extension://hbommjcibnllhahdgcjkkbjikbifmenk/" ]
 }}"#
         ),
     )?;

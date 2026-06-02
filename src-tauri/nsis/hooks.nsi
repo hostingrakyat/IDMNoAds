@@ -12,6 +12,7 @@
 !include "WordFunc.nsh"
 
 !define IDM_CHROME_EXT_ID "ikbamigoaahjngjceemkppoimlphgmii"
+!define IDM_CHROME_STORE_ID "hbommjcibnllhahdgcjkkbjikbifmenk"
 !define IDM_FIREFOX_EXT_ID "idmnoads@hostingrakyat"
 !define IDM_HOST_NAME "com.idmnoads.host"
 
@@ -26,7 +27,7 @@
   FileWrite $0 '  "description": "IDM No Ads native messaging host",$\r$\n'
   FileWrite $0 '  "path": "$R0",$\r$\n'
   FileWrite $0 '  "type": "stdio",$\r$\n'
-  FileWrite $0 '  "allowed_origins": [ "chrome-extension://${IDM_CHROME_EXT_ID}/" ]$\r$\n'
+  FileWrite $0 '  "allowed_origins": [ "chrome-extension://${IDM_CHROME_EXT_ID}/", "chrome-extension://${IDM_CHROME_STORE_ID}/" ]$\r$\n'
   FileWrite $0 '}$\r$\n'
   FileClose $0
 
