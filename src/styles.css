@@ -180,19 +180,10 @@ body {
 .ext-head h3 { margin: 0; }
 .ext-emoji { font-size: 26px; }
 .ext-sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; line-height: 1.5; }
-.ext-btns { display: flex; flex-direction: column; gap: 10px; }
-.ext-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 12px 16px; border-radius: 11px; border: 1px solid var(--border);
-  background: var(--bg-2); color: var(--text); cursor: pointer; text-align: left; }
-.ext-btn:hover { border-color: var(--primary); background: var(--row-hover); }
-.ext-btn b { font-size: 14px; }
-.ext-btn span { font-size: 12px; color: var(--muted); }
-.ext-btn.chrome { border-left: 3px solid #2563eb; }
-.ext-btn.firefox { border-left: 3px solid #ff7139; }
-.ext-manual { margin: 16px 0 0; font-size: 13px; color: var(--muted); }
-.ext-manual summary { cursor: pointer; color: var(--primary); }
-.ext-manual p { line-height: 1.5; }
-.ext-manual code { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.ext-steps { margin: 0 0 16px; padding-left: 20px; font-size: 13px; color: var(--text); line-height: 1.7; }
+.ext-steps li { margin-bottom: 6px; }
+.ext-steps code { background: var(--panel-2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.ext-release-btn { margin-bottom: 4px; }
 .ext-note { margin-top: 14px; font-size: 12px; color: #22c55e; }
 
 /* Drop overlay */

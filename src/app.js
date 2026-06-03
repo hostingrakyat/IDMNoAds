@@ -388,10 +388,6 @@ function wire() {
   // Browser-integration modal
   $("navExtension").onclick = () => openModal("extModal");
   $("ext_close").onclick = () => closeModal("extModal");
-  $("extChrome").onclick = () =>
-    openExternal("https://chromewebstore.google.com/detail/ikbamigoaahjngjceemkppoimlphgmii");
-  $("extFirefox").onclick = () =>
-    openExternal("https://addons.mozilla.org/firefox/addon/idm-no-ads/");
   $("extReleases").onclick = () =>
     openExternal("https://github.com/hostingrakyat/IDMNoAds/releases/latest");
 

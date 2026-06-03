@@ -201,23 +201,21 @@
         </div>
         <p class="ext-sub" data-i18n="ext_sub">Install the free extension so every download in your
           browser is captured automatically — one click, full speed. No setup, no copy-paste.</p>
-        <div class="ext-btns">
-          <button class="ext-btn chrome" id="extChrome">
-            <b>Chrome · Edge · Brave · Opera</b>
-            <span data-i18n="ext_get">Get the extension</span>
-          </button>
-          <button class="ext-btn firefox" id="extFirefox">
-            <b>Firefox</b>
-            <span data-i18n="ext_get">Get the extension</span>
-          </button>
-        </div>
-        <details class="ext-manual">
-          <summary data-i18n="ext_manual">Stores not approved yet? Install manually</summary>
-          <p data-i18n="ext_manual_text">Download the extension zip from the Releases page, unzip it,
-            then load it unpacked: Chrome/Edge → <code>chrome://extensions</code> → Developer mode →
-            Load unpacked. Firefox → <code>about:debugging</code> → Load Temporary Add-on.</p>
-          <button class="btn" id="extReleases" data-i18n="ext_open_releases">Open Releases page</button>
-        </details>
+
+        <ol class="ext-steps">
+          <li data-i18n="ext_step1">Download and unzip the extension from the Releases page below.</li>
+          <li><span data-i18n="ext_step2_chrome">Chrome / Edge / Brave:</span>
+            go to <code>chrome://extensions</code>, turn on <b data-i18n="ext_devmode">Developer mode</b>
+            (top-right toggle), click <b data-i18n="ext_load_unpacked">Load unpacked</b>, select the
+            unzipped folder.</li>
+          <li><span data-i18n="ext_step2_firefox">Firefox:</span>
+            go to <code>about:debugging</code> → <b data-i18n="ext_this_firefox">This Firefox</b> →
+            <b data-i18n="ext_load_temp">Load Temporary Add-on</b>, select
+            <code>manifest.json</code> inside the unzipped folder.</li>
+        </ol>
+
+        <button class="btn ext-release-btn" id="extReleases" data-i18n="ext_open_releases">Open Releases page</button>
+
         <p class="ext-note" data-i18n="ext_note">✓ The connection secret is shared automatically — you
           never have to copy or paste anything.</p>
         <div class="modal-actions">
