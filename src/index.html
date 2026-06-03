@@ -199,22 +199,33 @@
           <span class="ext-emoji">🧩</span>
           <h3 data-i18n="ext_title">Add IDM No Ads to your browser</h3>
         </div>
-        <p class="ext-sub" data-i18n="ext_sub">Install the free extension so every download in your
-          browser is captured automatically — one click, full speed. No setup, no copy-paste.</p>
+        <p class="ext-sub" data-i18n="ext_sub">The extension is already installed on your PC with the app —
+          nothing to download. Just load it into your browser once (takes 10 seconds):</p>
 
-        <ol class="ext-steps">
-          <li data-i18n="ext_step1">Download and unzip the extension from the Releases page below.</li>
-          <li><span data-i18n="ext_step2_chrome">Chrome / Edge / Brave:</span>
-            go to <code>chrome://extensions</code>, turn on <b data-i18n="ext_devmode">Developer mode</b>
-            (top-right toggle), click <b data-i18n="ext_load_unpacked">Load unpacked</b>, select the
-            unzipped folder.</li>
-          <li><span data-i18n="ext_step2_firefox">Firefox:</span>
-            go to <code>about:debugging</code> → <b data-i18n="ext_this_firefox">This Firefox</b> →
-            <b data-i18n="ext_load_temp">Load Temporary Add-on</b>, select
-            <code>manifest.json</code> inside the unzipped folder.</li>
-        </ol>
+        <div class="ext-browser">
+          <div class="ext-browser-head"><b data-i18n="ext_chrome_head">Chrome · Edge · Brave · Opera</b></div>
+          <ol class="ext-steps">
+            <li><span data-i18n="ext_chrome_s1">Open</span> <code>chrome://extensions</code>
+              <span data-i18n="ext_chrome_s1b">(paste in the address bar).</span></li>
+            <li><span data-i18n="ext_chrome_s2">Turn on</span> <b data-i18n="ext_devmode">Developer mode</b>
+              <span data-i18n="ext_chrome_s2b">— the toggle in the top-right corner.</span></li>
+            <li><span data-i18n="ext_chrome_s3">Click</span> <b data-i18n="ext_load_unpacked">Load unpacked</b>
+              <span data-i18n="ext_chrome_s3b">and pick the folder the button below opens.</span></li>
+          </ol>
+          <button class="btn primary ext-folder-btn" id="extOpenChrome" data-i18n="ext_open_folder">📂 Open the extension folder</button>
+        </div>
 
-        <button class="btn ext-release-btn" id="extReleases" data-i18n="ext_open_releases">Open Releases page</button>
+        <details class="ext-firefox">
+          <summary data-i18n="ext_firefox_head">Using Firefox?</summary>
+          <ol class="ext-steps">
+            <li><span data-i18n="ext_ff_s1">Open</span> <code>about:debugging</code> →
+              <b data-i18n="ext_this_firefox">This Firefox</b>.</li>
+            <li><span data-i18n="ext_ff_s2">Click</span> <b data-i18n="ext_load_temp">Load Temporary Add-on</b>
+              <span data-i18n="ext_ff_s2b">and select</span> <code>manifest.json</code>
+              <span data-i18n="ext_ff_s2c">in the folder the button below opens.</span></li>
+          </ol>
+          <button class="btn ext-folder-btn" id="extOpenFirefox" data-i18n="ext_open_folder">📂 Open the extension folder</button>
+        </details>
 
         <p class="ext-note" data-i18n="ext_note">✓ The connection secret is shared automatically — you
           never have to copy or paste anything.</p>

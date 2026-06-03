@@ -385,11 +385,18 @@ function wire() {
     invoke("write_clipboard", { text: $("s_rpc_secret").value }).catch(() => {});
   };
 
-  // Browser-integration modal
+  // Browser-integration modal — the extension ships bundled with the app, so
+  // these buttons just reveal the folder for "Load unpacked" / "Load Temporary
+  // Add-on". If the bundled copy can't be found (e.g. dev build), fall back to
+  // the Releases page so the user can still grab the zip.
   $("navExtension").onclick = () => openModal("extModal");
   $("ext_close").onclick = () => closeModal("extModal");
-  $("extReleases").onclick = () =>
-    openExternal("https://github.com/hostingrakyat/IDMNoAds/releases/latest");
+  const openExtFolder = (browser) =>
+    invoke("open_extension_folder", { browser }).catch(() =>
+      openExternal("https://github.com/hostingrakyat/IDMNoAds/releases/latest")
+    );
+  $("extOpenChrome").onclick = () => openExtFolder("chromium");
+  $("extOpenFirefox").onclick = () => openExtFolder("firefox");
 
   // About modal
   $("navAbout").onclick = () => openModal("aboutModal");

@@ -78,19 +78,28 @@ it goes away.
 On a fresh Windows install the **WebView2 runtime** is required; the NSIS
 installer downloads it automatically if missing.
 
-## 🧩 Browser extension setup (developer / sideload)
+## 🧩 Browser extension setup
 
-Until the extensions are approved on the stores you can load them unpacked:
+**The extension ships inside the installer** — you don't have to download or
+unzip anything. The first time you open the app it shows a **"Add IDM No Ads to
+your browser"** prompt with an **📂 Open the extension folder** button. Then:
 
 - **Chrome/Edge/Brave:** `chrome://extensions` → enable *Developer mode* →
-  *Load unpacked* → select `chromium-extension/`.
+  *Load unpacked* → select the folder the button opened.
 - **Firefox:** `about:debugging` → *This Firefox* → *Load Temporary Add-on* →
-  select `firefox-extension/manifest.json`.
+  select `manifest.json` in the folder the button opened.
 
-That's it — the first time you open the app it shows a **"Add IDM No Ads to your
-browser"** prompt with one-click store links. The extension auto-discovers the
-aria2 RPC secret from the desktop app over the native-messaging connection, so
-the popup's live queue works immediately with **no copy-paste**.
+> Chrome/Edge **cannot** silently install an unpacked extension (Google blocks
+> this to stop malware), so the one-time *Developer mode → Load unpacked* step is
+> unavoidable until the store listings are approved. After that, users install
+> with one click from the Web Store / AMO instead.
+
+The extension auto-discovers the aria2 RPC secret from the desktop app over the
+native-messaging connection, so the popup's live queue works immediately with
+**no copy-paste**.
+
+(For development from a git clone, the unpacked folders are `chromium-extension/`
+and `firefox-extension/`.)
 
 The extension IDs are **pinned** so they always match the native-host manifest:
 

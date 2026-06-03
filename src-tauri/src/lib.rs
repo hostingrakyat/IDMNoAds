@@ -65,6 +65,7 @@ pub fn run() {
             commands::write_clipboard,
             commands::open_url,
             commands::open_file,
+            commands::open_extension_folder,
             commands::app_version,
         ])
         .build(tauri::generate_context!())

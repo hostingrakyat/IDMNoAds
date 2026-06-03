@@ -118,6 +118,16 @@ jobs:
             if (Test-Path $src) { Copy-Item $src "$stage\icons\$icon" -Force }
           }
 
+          # Bundle the unpacked browser extensions so the app can reveal them for
+          # "Load unpacked" (the NSIS/MSI builds get this via tauri resources).
+          # NEVER ship key.pem.
+          foreach ($b in @("chromium","firefox")) {
+            $dest = "$stage\extension\$b"
+            New-Item -ItemType Directory -Force -Path $dest | Out-Null
+            Copy-Item "$b-extension\*" $dest -Recurse -Force
+            Remove-Item "$dest\key.pem" -ErrorAction SilentlyContinue
+          }
+
           # ── 3. Write AppxManifest.xml (substitute {{VERSION}}) ───────────────
           $version = "1.0.0"
           (Get-Content "src-tauri\AppxManifest.xml.template" -Raw) `

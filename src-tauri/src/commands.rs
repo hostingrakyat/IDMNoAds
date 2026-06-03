@@ -189,6 +189,42 @@ pub fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// Open the bundled (unpacked) browser-extension folder in the OS file manager.
+///
+/// The extension ships inside the installer under `resources/extension/<browser>`,
+/// so the user never has to download or unzip anything — they only enable
+/// Developer mode and point "Load unpacked" at the folder this opens.
+/// `browser` is "chromium" or "firefox".
+#[tauri::command]
+pub fn open_extension_folder(app: AppHandle, browser: String) -> Result<String, String> {
+    let sub = if browser == "firefox" { "firefox" } else { "chromium" };
+    let dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .join("extension")
+        .join(sub);
+    if !dir.exists() {
+        return Err(format!("extension folder not found: {}", dir.display()));
+    }
+    let path = dir.to_string_lossy().to_string();
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(path)
+}
+
 // ---- platform helpers ----
 fn open_external(target: &str) -> Result<(), String> {
     #[cfg(windows)]
