@@ -137,6 +137,12 @@ async fn add_capture(app: &AppHandle, msg: &Value) -> Result<(), String> {
     let mut options = json!({
         "split": connections,
         "max-connection-per-server": connections,
+        // Same fix as add_download: re-captured URLs whose file already exists
+        // get a fresh numbered copy instead of silently no-op'ing under the
+        // global --continue=true. (Interrupted downloads still resume via the
+        // .aria2 control file.)
+        "continue": "false",
+        "auto-file-renaming": "true",
     });
     if !dir.is_empty() {
         options["dir"] = json!(dir);

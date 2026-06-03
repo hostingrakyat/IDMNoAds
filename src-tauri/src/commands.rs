@@ -22,6 +22,14 @@ pub async fn add_download(
     let mut options = json!({
         "split": conn,
         "max-connection-per-server": conn,
+        // Re-downloading a URL whose file already exists must produce a fresh
+        // numbered copy (file.1.ext), like IDM/browsers do. With aria2's global
+        // --continue=true, a re-download instead sees the finished file and
+        // silently marks itself "complete" without downloading anything. The
+        // per-download override below fixes that; aria2 still resumes its own
+        // interrupted downloads because the .aria2 control file takes priority.
+        "continue": "false",
+        "auto-file-renaming": "true",
     });
     if !target_dir.is_empty() {
         options["dir"] = json!(target_dir);
@@ -170,18 +178,31 @@ pub fn open_url(url: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn open_file(state: State<'_, AppState>, gid: String) -> Result<(), String> {
     let status = state.aria2.status(&gid).await?;
+    let dir = status.get("dir").and_then(|d| d.as_str()).unwrap_or("");
     let path = status
         .get("files")
         .and_then(|f| f.as_array())
         .and_then(|a| a.first())
         .and_then(|f| f.get("path"))
         .and_then(|p| p.as_str())
-        .unwrap_or("")
-        .to_string();
-    if path.is_empty() {
+        .unwrap_or("");
+
+    // aria2 normally reports an absolute path, but if it's relative (or empty)
+    // resolve it against the download dir so the file manager lands in the
+    // right place instead of defaulting to Documents.
+    let target = if !path.is_empty() {
+        let p = std::path::Path::new(path);
+        if p.is_absolute() || dir.is_empty() {
+            path.to_string()
+        } else {
+            std::path::Path::new(dir).join(path).to_string_lossy().to_string()
+        }
+    } else if !dir.is_empty() {
+        dir.to_string()
+    } else {
         return Err("file path unknown".into());
-    }
-    reveal_in_folder(&path)
+    };
+    reveal_in_folder(&target)
 }
 
 #[tauri::command]
@@ -247,10 +268,29 @@ fn open_external(target: &str) -> Result<(), String> {
 fn reveal_in_folder(path: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
-        std::process::Command::new("explorer")
-            .arg(format!("/select,{path}"))
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        use std::os::windows::process::CommandExt;
+        // aria2 can report forward slashes; Explorer needs backslashes.
+        let win_path = path.replace('/', "\\");
+        let is_file = std::path::Path::new(&win_path).is_file();
+        // IMPORTANT: only the PATH may be quoted — not the whole "/select,..."
+        // switch. Using .arg() makes std quote the entire argument
+        // (`"/select,C:\dir\file"`), which Explorer can't parse, so it silently
+        // falls back to the Documents folder. raw_arg passes the fragment
+        // verbatim so the quotes land around the path only.
+        let mut cmd = std::process::Command::new("explorer");
+        if is_file {
+            cmd.raw_arg(format!("/select,\"{win_path}\""));
+        } else {
+            // The file isn't there (renamed, moved, deleted) — open the nearest
+            // existing folder instead of letting Explorer default to Documents.
+            let dir = std::path::Path::new(&win_path)
+                .parent()
+                .filter(|d| d.exists())
+                .map(|d| d.to_string_lossy().replace('/', "\\"))
+                .unwrap_or_else(|| win_path.clone());
+            cmd.raw_arg(format!("\"{dir}\""));
+        }
+        cmd.spawn().map_err(|e| e.to_string())?;
     }
     #[cfg(not(windows))]
     {
