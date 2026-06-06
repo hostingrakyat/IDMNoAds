@@ -25,7 +25,6 @@
     "downloads",
     "contextMenus",
     "tabs",
-    "webRequest",
     "cookies",
     "storage",
     "notifications"

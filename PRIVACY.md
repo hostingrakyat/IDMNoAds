@@ -29,7 +29,7 @@ and no advertising. We never see your data.
 | `downloads` | Detect and take over downloads you start. |
 | `contextMenus` | Add the "Download with IDM No Ads" right-click item. |
 | `cookies` | Pass your session cookies to the engine so authenticated downloads (e.g. Google Drive) work. |
-| `tabs` / `webRequest` | Detect media on the current page. |
+| `tabs` | Detect media on the current page. |
 | `storage` | Remember your extension options locally. |
 | `notifications` | Tell you when a download was sent to the app. |
 | `<all_urls>` | The above must work on any site you download from. |
