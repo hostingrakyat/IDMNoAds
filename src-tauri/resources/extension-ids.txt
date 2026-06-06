@@ -1,0 +1,19 @@
+IDM No Ads — pinned browser extension identities
+=================================================
+
+These IDs are baked into the installer and the native-messaging host manifests.
+They MUST match the published extensions and must never change.
+
+Chromium (Chrome / Edge / Brave / Opera / Vivaldi):
+  Extension ID : ikbamigoaahjngjceemkppoimlphgmii
+  Pinned via   : the "key" field in chromium-extension/manifest.json
+  Host allows  : chrome-extension://ikbamigoaahjngjceemkppoimlphgmii/
+
+Firefox:
+  Extension ID : idmnoads@hostingrakyat
+  Pinned via   : browser_specific_settings.gecko.id in firefox-extension/manifest.json
+  Host allows  : idmnoads@hostingrakyat
+
+Native messaging host name: com.idmnoads.host
+Local IPC pipe            : \\.\pipe\idmnoads
+aria2 RPC endpoint        : http://127.0.0.1:6800/jsonrpc

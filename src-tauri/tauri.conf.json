@@ -1,0 +1,78 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "IDM No Ads",
+  "version": "1.0.0",
+  "identifier": "com.idmnoads.app",
+  "build": {
+    "frontendDist": "../src",
+    "beforeBuildCommand": "",
+    "beforeDevCommand": ""
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "IDM No Ads",
+        "width": 1120,
+        "height": 720,
+        "minWidth": 860,
+        "minHeight": 560,
+        "dragDropEnabled": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png",
+      "icons/Square44x44Logo.png",
+      "icons/Square150x150Logo.png",
+      "icons/Square284x284Logo.png",
+      "icons/Square310x310Logo.png",
+      "icons/StoreLogo.png"
+    ],
+    "externalBin": ["binaries/aria2c", "binaries/idmnoads-host"],
+    "resources": {
+      "resources/*": "resources/",
+      "../chromium-extension/manifest.json": "extension/chromium/manifest.json",
+      "../chromium-extension/background.js": "extension/chromium/background.js",
+      "../chromium-extension/content.js": "extension/chromium/content.js",
+      "../chromium-extension/popup.html": "extension/chromium/popup.html",
+      "../chromium-extension/popup.js": "extension/chromium/popup.js",
+      "../chromium-extension/options.html": "extension/chromium/options.html",
+      "../chromium-extension/options.js": "extension/chromium/options.js",
+      "../chromium-extension/icons/*": "extension/chromium/icons/",
+      "../firefox-extension/manifest.json": "extension/firefox/manifest.json",
+      "../firefox-extension/background.js": "extension/firefox/background.js",
+      "../firefox-extension/content.js": "extension/firefox/content.js",
+      "../firefox-extension/popup.html": "extension/firefox/popup.html",
+      "../firefox-extension/popup.js": "extension/firefox/popup.js",
+      "../firefox-extension/options.html": "extension/firefox/options.html",
+      "../firefox-extension/options.js": "extension/firefox/options.js",
+      "../firefox-extension/icons/*": "extension/firefox/icons/"
+    },
+    "publisher": "Ir. Riovan Styx Roring",
+    "copyright": "© 2026 Ir. Riovan Styx Roring",
+    "category": "Utility",
+    "shortDescription": "Free, no-ads, segmented download manager",
+    "longDescription": "IDM No Ads — a free, open, no-ads, no-watermark download manager for Windows. Multi-segment downloads via aria2, browser integration, scheduler, categories. Forever free.",
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installerHooks": "nsis/hooks.nsi",
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {}
+}

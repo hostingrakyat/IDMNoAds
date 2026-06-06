@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "IDM No Ads",
+  "version": "1.0.0",
+  "description": "Capture downloads and send them to the IDM No Ads download manager. Free, no ads, no watermark.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "idmnoads@hostingrakyat",
+      "strict_min_version": "115.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "permissions": [
+    "nativeMessaging",
+    "downloads",
+    "contextMenus",
+    "tabs",
+    "cookies",
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "IDM No Ads",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

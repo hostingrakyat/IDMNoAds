@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IDM No Ads — AppxManifest for Microsoft Store MSIX packaging.
+
+  This file is used by the CI "Package MSIX" step (build.yml).  The PowerShell
+  script substitutes {{VERSION}} before calling makeappx.exe.  It is NOT
+  processed by Tauri's bundler (Tauri 2 builds NSIS + MSI via its own pipeline).
+
+  runFullTrust restricted capability — required so that Chrome / Edge / Firefox /
+  Brave can spawn idmnoads-host.exe as a native-messaging host subprocess from
+  the protected MSIX install directory.  During Partner Center submission, add
+  justification: "The native messaging host bridges browser extensions to the
+  local IDM No Ads desktop app."
+
+  File associations for .torrent and .metalink are declared here so Windows
+  registers them at install time without needing NSIS hooks (which don't run
+  for MSIX installs).
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap desktop2">
+
+  <!--
+    Publisher CN must match the signing certificate.
+    For CI (self-signed): CN=IDMNoAdsTest
+    For Partner Center upload: Microsoft re-signs; submit with your Partner Center
+    Publisher CN from Account settings → Legal info.
+  -->
+  <Identity
+    Name="IrRiovanStyxRoring.IDMNoAds"
+    Publisher="CN=IDMNoAdsTest"
+    Version="{{VERSION}}.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>IDM No Ads</DisplayName>
+    <PublisherDisplayName>Ir. Riovan Styx Roring</PublisherDisplayName>
+    <Logo>icons\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.17763.0"
+      MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="IDMNoAds"
+      Executable="IDM No Ads.exe"
+      EntryPoint="Windows.FullTrustApplication">
+
+      <uap:VisualElements
+        DisplayName="IDM No Ads"
+        Description="Free, no-ads, segmented download manager"
+        BackgroundColor="transparent"
+        Square150x150Logo="icons\Square150x150Logo.png"
+        Square44x44Logo="icons\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="icons\Square284x284Logo.png"
+          Square310x310Logo="icons\Square310x310Logo.png"
+          Square71x71Logo="icons\Square71x71Logo.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+            <uap:ShowOn Tile="square310x310Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+      </uap:VisualElements>
+
+      <Extensions>
+
+        <!-- Allow browsers (Chrome/Edge/Firefox/Brave) to launch idmnoads-host.exe
+             as a native-messaging host subprocess from the MSIX install directory. -->
+        <desktop2:Extension
+          Category="windows.fullTrustProcess"
+          Executable="idmnoads-host.exe" />
+
+        <!-- .torrent file association -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="torrent">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.torrent</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>BitTorrent File</uap:DisplayName>
+            <uap:Logo>icons\Square44x44Logo.png</uap:Logo>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <!-- .metalink file association -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="metalink">
+            <uap:SupportedFileTypes>
+              <uap:FileType>.metalink</uap:FileType>
+            </uap:SupportedFileTypes>
+            <uap:DisplayName>Metalink File</uap:DisplayName>
+            <uap:Logo>icons\Square44x44Logo.png</uap:Logo>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <!-- Required for fullTrustProcess (idmnoads-host.exe spawned by browsers). -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+</Package>

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "IDM No Ads",
+  "version": "1.0.0",
+  "description": "Capture downloads and send them to the IDM No Ads download manager. Free, no ads, no watermark.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0myCYh+n6KDOaZVqRn6l1m/AcmaDUDvE3Gd4o6Ed3jYng4ausuYR1rz5fcvDxHF5taTFa4mknkZ0Yw32eAbLu5uAuqeqw+25zDUeL7bNR6iAIz2jLuLIZlHKJh6Swza74AHlmc2E0R6SwzODvMUwvX1ON1SVG56g8sCwZHFzTQ+ivyBtjYJqzJtCkK/VAuiF+Vp7QFpwtJWcSm1CbQdcOcCGN7BbSDr0HWpzdH0wLir6Y1RqR9ExqArgAWnfEkAjdxjFyUjIcATBEallmbCQJp85enF8zKXxXMKC5eeCZHEbn9scdQJm1EssimgJXPvW2zX5tuYqDSPmt/vfkYddwwIDAQAB",
+  "minimum_chrome_version": "110",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "nativeMessaging",
+    "downloads",
+    "contextMenus",
+    "tabs",
+    "cookies",
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "IDM No Ads",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}
